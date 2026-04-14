@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="robots" content="noindex,nofollow"/>
+  <title>XBurger Admin Panel</title>
+  <link rel="stylesheet" href="admin.css"/>
+  <!-- sql.js — SQLite compiled to WebAssembly -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
+</head>
+<body>
+
+<!-- =========================================
+     LOADING SCREEN
+     ========================================= -->
+<div id="loading-screen">
+  <div class="loading-logo">🍔 XBurger</div>
+  <p style="color:rgba(255,255,255,0.4);font-size:0.85rem;margin-top:-4px">Admin Panel</p>
+  <div class="loading-spinner"></div>
+  <p style="color:rgba(255,255,255,0.3);font-size:0.75rem">Starting database…</p>
+</div>
+
+<!-- =========================================
+     LOGIN SCREEN
+     ========================================= -->
+<div id="login-screen" style="display:none">
+  <div class="login-card" id="login-card">
+    <div class="login-header">
+      <div class="login-logo">🍔 XBurger</div>
+      <p style="font-size:1.1rem;font-weight:700;margin:10px 0 4px">Admin Panel</p>
+      <p class="login-subtitle">Sign in to manage your restaurant</p>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="login-username">Username</label>
+      <input class="form-input" type="text" id="login-username"
+        placeholder="Enter username" autocomplete="username" autofocus/>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="login-password">Password</label>
+      <input class="form-input" type="password" id="login-password"
+        placeholder="Enter password" autocomplete="current-password"/>
+    </div>
+
+    <button class="btn-login" onclick="App.login()">Sign In →</button>
+    <div id="login-error" class="login-error"></div>
+
+    <div class="login-hint">
+      Default credentials: <strong>admin</strong> / <strong>xburger2025</strong>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================
+     ADMIN PANEL
+     ========================================= -->
+<div id="admin-panel" style="display:none">
+
+  <!-- ===================== SIDEBAR ===================== -->
+  <aside id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">🍔 XBurger</div>
+      <div class="sidebar-tagline">Admin Dashboard</div>
+    </div>
+
+    <div class="nav-section-label">Main</div>
+    <button class="nav-item" data-section="dashboard" onclick="UI.navigateTo('dashboard')">
+      <span class="nav-icon">📊</span> Dashboard
+    </button>
+    <button class="nav-item" data-section="orders" onclick="UI.navigateTo('orders')">
+      <span class="nav-icon">📦</span> Orders
+    </button>
+    <button class="nav-item" data-section="ratings" onclick="UI.navigateTo('ratings')">
+      <span class="nav-icon">⭐</span> Ratings
+    </button>
+    <button class="nav-item" data-section="products" onclick="UI.navigateTo('products')">
+      <span class="nav-icon">🍔</span> Products
+    </button>
+
+    <div class="nav-section-label" style="margin-top:8px">Account</div>
+    <button class="nav-item" data-section="settings" onclick="UI.navigateTo('settings')">
+      <span class="nav-icon">⚙️</span> Settings
+    </button>
+    <a class="nav-item" href="../index.html" target="_blank" style="text-decoration:none">
+      <span class="nav-icon">🌐</span> View Website
+    </a>
+
+    <div class="sidebar-footer">
+      <div class="admin-profile">
+        <div class="admin-avatar">A</div>
+        <div class="admin-info">
+          <div class="admin-name-text" id="admin-name">Admin</div>
+          <div class="admin-username-text" id="admin-username">@admin</div>
+        </div>
+      </div>
+      <button class="btn-logout" onclick="App.logout()">🚪 Logout</button>
+    </div>
+  </aside>
+
+  <!-- ===================== MAIN CONTENT ===================== -->
+  <main id="main-content">
+
+    <!-- Top Bar -->
+    <header class="top-bar">
+      <div class="top-bar-left">
+        <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Toggle menu">☰</button>
+        <span id="section-title">📊 Dashboard</span>
+      </div>
+      <div class="top-bar-right">
+        <span class="top-date" id="top-date"></span>
+        <button class="btn-icon" onclick="UI.renderSection('dashboard');UI.navigateTo(_currentSection||'dashboard')"
+          title="Refresh" aria-label="Refresh">🔄</button>
+      </div>
+    </header>
+
+    <!-- Content Area -->
+    <div class="content-area">
+
+      <!-- ============ DASHBOARD SECTION ============ -->
+      <section id="section-dashboard" class="section-content">
+
+        <!-- Top Stat Cards -->
+        <div class="stats-grid">
+          <div class="stat-card red">
+            <div class="stat-icon">📦</div>
+            <div class="stat-value" id="stat-total-orders">0</div>
+            <div class="stat-label">Total Orders</div>
+          </div>
+          <div class="stat-card yellow">
+            <div class="stat-icon">💰</div>
+            <div class="stat-value" id="stat-revenue">₦0</div>
+            <div class="stat-label">Revenue (Paid)</div>
+            <div class="stat-sub" id="stat-pending-revenue"></div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-icon">⭐</div>
+            <div class="stat-value" id="stat-avg-rating">0.0</div>
+            <div class="stat-label">Avg Rating (<span id="stat-total-ratings">0</span> reviews)</div>
+          </div>
+          <div class="stat-card blue">
+            <div class="stat-icon">⏳</div>
+            <div class="stat-value" id="stat-pending">0</div>
+            <div class="stat-label">Pending Orders</div>
+          </div>
+        </div>
+
+        <!-- Status Breakdown -->
+        <div class="status-breakdown">
+          <div class="status-item">
+            <div class="status-dot processing"></div>
+            <div>
+              <div class="status-num" id="stat-processing">0</div>
+              <div class="status-lbl">Processing</div>
+            </div>
+          </div>
+          <div class="status-item">
+            <div class="status-dot delivered"></div>
+            <div>
+              <div class="status-num" id="stat-delivered">0</div>
+              <div class="status-lbl">Delivered</div>
+            </div>
+          </div>
+          <div class="status-item">
+            <div class="status-dot cancelled"></div>
+            <div>
+              <div class="status-num" id="stat-cancelled">0</div>
+              <div class="status-lbl">Cancelled</div>
+            </div>
+          </div>
+          <div class="status-item">
+            <div class="status-dot ratings"></div>
+            <div>
+              <div class="status-num" id="stat-total-ratings-2">—</div>
+              <div class="status-lbl">Avg ★ Rating</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dashboard Grid: Recent Orders + Rating Chart -->
+        <div class="dashboard-grid">
+
+          <!-- Recent Orders Table -->
+          <div class="card">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+              <p class="card-title" style="margin:0">Recent Orders</p>
+              <button class="btn-secondary" style="font-size:0.75rem;padding:6px 12px"
+                onclick="UI.navigateTo('orders')">View All →</button>
+            </div>
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Order #</th><th>Customer</th><th>Total</th>
+                    <th>Status</th><th>Payment</th><th>Date</th>
+                  </tr>
+                </thead>
+                <tbody id="recent-orders-tbody">
+                  <tr><td colspan="6" class="empty-row">Loading…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Right column -->
+          <div style="display:flex;flex-direction:column;gap:16px">
+            <!-- Top product -->
+            <div class="card">
+              <p class="card-title">🏆 Best Seller</p>
+              <div class="top-product-card">
+                <div class="top-product-label">Top Product</div>
+                <div class="top-product-name" id="top-product-name">—</div>
+                <div class="top-product-sales" id="top-product-sales">— orders</div>
+              </div>
+              <button class="btn-secondary" style="width:100%;font-size:0.78rem"
+                onclick="UI.navigateTo('products')">Manage Products →</button>
+            </div>
+
+            <!-- Rating chart -->
+            <div class="card" style="flex:1">
+              <p class="card-title">⭐ Rating Distribution</p>
+              <div id="rating-chart" style="padding-top:4px"></div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ============ ORDERS SECTION ============ -->
+      <section id="section-orders" class="section-content">
+        <div class="section-header">
+          <h2>Order Management</h2>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn-secondary" onclick="App.exportOrders()" title="Export CSV">⬇️ Export CSV</button>
+            <button class="btn-primary" onclick="UI.openOrderModal()">➕ Add Order</button>
+          </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="orders-filters">
+          <input class="filter-input" id="order-search" type="search"
+            placeholder="🔍 Search name, order#, phone…"
+            oninput="UI.setOrderFilter('search', this.value)" style="flex:1;min-width:180px"/>
+          <select class="filter-input" id="order-status-filter"
+            onchange="UI.setOrderFilter('status', this.value)">
+            <option value="">All Statuses</option>
+            <option value="pending">Pending</option>
+            <option value="processing">Processing</option>
+            <option value="ready">Ready</option>
+            <option value="delivered">Delivered</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+          <select class="filter-input" id="order-pay-filter"
+            onchange="UI.setOrderFilter('payment', this.value)">
+            <option value="">All Payments</option>
+            <option value="paid">Paid</option>
+            <option value="pending">Unpaid</option>
+            <option value="failed">Failed</option>
+            <option value="refunded">Refunded</option>
+          </select>
+          <button class="btn-secondary" onclick="UI.clearOrderFilters()">✕ Clear</button>
+          <span id="orders-count" style="color:var(--text-muted);font-size:0.78rem;align-self:center"></span>
+        </div>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Order #</th><th>Customer</th><th>Items</th><th>Total</th>
+                <th>Status</th><th>Payment</th><th>Date</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="orders-tbody">
+              <tr><td colspan="8" class="empty-row">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============ RATINGS SECTION ============ -->
+      <section id="section-ratings" class="section-content">
+        <div class="section-header">
+          <h2>Ratings & Reviews</h2>
+          <button class="btn-primary" onclick="UI.openRatingModal()">➕ Add Rating</button>
+        </div>
+
+        <!-- Summary bar -->
+        <div class="ratings-header-bar">
+          <div>
+            <div class="ratings-avg-big" id="ratings-avg-big">0.0</div>
+            <div class="ratings-stars-big" id="ratings-stars-big">☆☆☆☆☆</div>
+            <div class="ratings-total-big" id="ratings-total-big">0 reviews</div>
+          </div>
+          <div style="flex:1;max-width:300px">
+            <p style="font-size:0.75rem;color:var(--text-muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:1px">Distribution</p>
+            <div id="rating-chart-ratings" style="display:flex;flex-direction:column;gap:8px">
+              <!-- filled by renderRatings via rating-chart in dashboard — reused -->
+            </div>
+          </div>
+        </div>
+
+        <div class="ratings-grid" id="ratings-grid">
+          <div class="empty-state">Loading reviews…</div>
+        </div>
+      </section>
+
+      <!-- ============ PRODUCTS SECTION ============ -->
+      <section id="section-products" class="section-content">
+        <div class="section-header">
+          <h2>Products / Menu</h2>
+          <div style="display:flex;align-items:center;gap:16px;">
+            <p style="font-size:0.8rem;color:var(--text-muted)">Toggle availability &amp; update prices</p>
+            <button class="btn-primary" onclick="UI.openProductModal()">➕ Add Product</button>
+          </div>
+        </div>
+        <div class="products-grid" id="products-grid">
+          <p style="color:var(--text-muted)">Loading products…</p>
+        </div>
+      </section>
+
+      <!-- ============ SETTINGS SECTION ============ -->
+      <section id="section-settings" class="section-content">
+        <div class="section-header"><h2>Settings</h2></div>
+
+        <!-- Account info -->
+        <div class="settings-card">
+          <div class="settings-title">👤 Account Information</div>
+          <div class="settings-info-row">
+            <span class="settings-info-label">Username</span>
+            <span class="settings-info-value" id="settings-username">admin</span>
+          </div>
+          <div class="settings-info-row">
+            <span class="settings-info-label">Role</span>
+            <span class="settings-info-value">Super Admin</span>
+          </div>
+          <div class="settings-info-row">
+            <span class="settings-info-label">Database</span>
+            <span class="settings-info-value">SQLite (sql.js)</span>
+          </div>
+          <div class="settings-info-row">
+            <span class="settings-info-label">Storage</span>
+            <span class="settings-info-value">Browser localStorage</span>
+          </div>
+        </div>
+
+        <!-- Change password -->
+        <div class="settings-card">
+          <div class="settings-title">🔑 Change Password</div>
+          <div class="form-group">
+            <label class="form-label">Current Password</label>
+            <input class="form-input" type="password" id="current-password" placeholder="••••••••"/>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">New Password</label>
+              <input class="form-input" type="password" id="new-password" placeholder="Min 6 chars"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Confirm Password</label>
+              <input class="form-input" type="password" id="confirm-password" placeholder="Repeat password"/>
+            </div>
+          </div>
+          <button class="btn-primary" onclick="App.changePassword()">💾 Update Password</button>
+        </div>
+
+        <!-- Activity log -->
+        <div class="settings-card">
+          <div class="settings-title">📋 Activity Log</div>
+          <div id="activity-log-list" style="max-height:220px;overflow-y:auto"></div>
+        </div>
+
+        <!-- Danger zone -->
+        <div class="settings-card danger-zone">
+          <div class="danger-title">⚠️ Danger Zone</div>
+          <p class="danger-desc">Resetting the database will permanently delete all orders, ratings,
+            and data. This action cannot be undone. Use with extreme caution.</p>
+          <button class="btn-danger" onclick="App.resetDatabase()">🗑️ Reset Database</button>
+        </div>
+      </section>
+
+    </div><!-- /content-area -->
+  </main>
+</div><!-- /admin-panel -->
+
+<!-- =========================================
+     MODAL — ADD / EDIT ORDER
+     ========================================= -->
+<div id="order-modal" class="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title" id="order-modal-title">➕ Add New Order</span>
+      <button class="modal-close" onclick="UI.closeOrderModal()">✕</button>
+    </div>
+    <form id="order-form" onsubmit="return false">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Customer Name</label>
+          <input class="form-input" name="customer_name" placeholder="e.g. Tunde Kareem"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Phone</label>
+          <input class="form-input" name="customer_phone" placeholder="e.g. 08012345678"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email (optional)</label>
+        <input class="form-input" name="customer_email" type="email" placeholder="customer@email.com"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Delivery Address</label>
+        <input class="form-input" name="delivery_address" placeholder="e.g. Lekki Phase 1, Lagos"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Items Ordered</label>
+        <textarea class="form-textarea" name="items_text"
+          placeholder="One item per line:&#10;Classic Burger x2 @ 3000&#10;Fried Chips x1 @ 1500"></textarea>
+        <p class="form-hint">Format: Name x[qty] @ [price] — one item per line</p>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Grand Total (₦)</label>
+          <input class="form-input" name="total" type="number" min="0" step="100" placeholder="e.g. 4500"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Order Status</label>
+          <select class="form-select" name="status">
+            <option value="pending">Pending</option>
+            <option value="processing">Processing</option>
+            <option value="ready">Ready</option>
+            <option value="delivered">Delivered</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Payment Method</label>
+          <select class="form-select" name="payment_method">
+            <option value="Paystack">Paystack</option>
+            <option value="Cash">Cash</option>
+            <option value="Transfer">Bank Transfer</option>
+            <option value="POS">POS</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Payment Status</label>
+          <select class="form-select" name="payment_status">
+            <option value="pending">Pending</option>
+            <option value="paid">Paid</option>
+            <option value="failed">Failed</option>
+            <option value="refunded">Refunded</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes (optional)</label>
+        <input class="form-input" name="notes" placeholder="Extra instructions, allergies, etc."/>
+      </div>
+    </form>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="UI.closeOrderModal()">Cancel</button>
+      <button class="btn-primary" onclick="App.saveOrder()">💾 Save Order</button>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================
+     MODAL — VIEW ORDER DETAIL
+     ========================================= -->
+<div id="view-order-modal" class="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">🧾 Order Details</span>
+      <button class="modal-close" onclick="UI.closeViewOrderModal()">✕</button>
+    </div>
+    <div id="view-order-content"></div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="UI.closeViewOrderModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================
+     MODAL — ADD RATING
+     ========================================= -->
+<div id="rating-modal" class="modal-overlay">
+  <div class="modal-box" style="max-width:440px">
+    <div class="modal-header">
+      <span class="modal-title">⭐ Add Rating</span>
+      <button class="modal-close" onclick="UI.closeRatingModal()">✕</button>
+    </div>
+    <form id="rating-form" onsubmit="return false">
+      <div class="form-group">
+        <label class="form-label">Customer Name</label>
+        <input class="form-input" name="customer_name" placeholder="e.g. Amaka Folasade" required/>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Rating (1–5)</label>
+          <select class="form-select" name="rating" required>
+            <option value="">Select…</option>
+            <option value="5">⭐⭐⭐⭐⭐ — Excellent</option>
+            <option value="4">⭐⭐⭐⭐ — Good</option>
+            <option value="3">⭐⭐⭐ — Average</option>
+            <option value="2">⭐⭐ — Below avg</option>
+            <option value="1">⭐ — Poor</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Product</label>
+          <select class="form-select" name="product_name" id="rating-product-select">
+            <option value="General">General</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Review</label>
+        <textarea class="form-textarea" name="review" placeholder="Customer's comment…"></textarea>
+      </div>
+      <div class="form-group" style="display:flex;align-items:center;gap:10px">
+        <input type="checkbox" name="approved" id="rating-approved" checked
+          style="width:16px;height:16px;accent-color:var(--red);cursor:pointer"/>
+        <label for="rating-approved" style="font-size:0.83rem;cursor:pointer">Approved (visible on website)</label>
+      </div>
+    </form>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="UI.closeRatingModal()">Cancel</button>
+      <button class="btn-primary" onclick="App.saveRating()">💾 Save Rating</button>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================
+     MODAL — ADD PRODUCT
+     ========================================= -->
+<div id="product-modal" class="modal-overlay">
+  <div class="modal-box" style="max-width:440px">
+    <div class="modal-header">
+      <span class="modal-title">🍔 Add New Product</span>
+      <button class="modal-close" onclick="UI.closeProductModal()">✕</button>
+    </div>
+    <form id="product-form" onsubmit="return false">
+      <div class="form-group">
+        <label class="form-label">Product Name</label>
+        <input class="form-input" name="name" placeholder="e.g. Spicy Chicken Burger" required/>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Price (₦)</label>
+          <input class="form-input" name="price" type="number" min="0" step="100" placeholder="e.g. 4000" required/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Category</label>
+          <input class="form-input" name="category" placeholder="e.g. Burger" required/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea class="form-textarea" name="description" placeholder="A brief description…"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Featured Image URL (optional)</label>
+        <input class="form-input" name="image" placeholder="eg. https://example.com/image.jpg"/>
+      </div>
+    </form>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="UI.closeProductModal()">Cancel</button>
+      <button class="btn-primary" onclick="App.saveProduct()">💾 Add Product</button>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================
+     MODAL — CONFIRM DIALOG
+     ========================================= -->
+<div id="confirm-modal" class="modal-overlay">
+  <div class="modal-box sm">
+    <div class="confirm-icon">⚠️</div>
+    <p class="confirm-message" id="confirm-message">Are you sure?</p>
+    <div class="confirm-actions">
+      <button class="btn-secondary" id="confirm-cancel-btn">Cancel</button>
+      <button class="btn-danger" id="confirm-ok-btn">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="admin-toast" class="admin-toast" role="status" aria-live="polite"></div>
+
+<script src="admin.js"></script>
+</body>
+</html>

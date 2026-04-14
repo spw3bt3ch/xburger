@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- =========================================
+       XBurger - Hot, Fresh Burgers in Lagos
+       Version: 1.0.0
+       ========================================= -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="XBurger — Hot, fresh, juicy burgers delivered fast in Lagos, Nigeria. Order online and pay securely via Paystack." />
+  <meta name="keywords" content="XBurger, burgers, fast food Lagos, burger delivery Lagos, cheese burger, combo meal" />
+  <meta name="author" content="XBurger" />
+  <meta property="og:title" content="XBurger — Hot, Fresh Burgers in Lagos" />
+  <meta property="og:description" content="Order the best burgers in Lagos online. Fast delivery, fresh ingredients, and easy payment." />
+  <meta property="og:type" content="website" />
+  <title>XBurger — Hot, Fresh Burgers in Lagos, Nigeria</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Tailwind Config -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              red: '#DC2626',
+              'red-dark': '#991B1B',
+              yellow: '#FBBF24',
+              'yellow-dark': '#D97706',
+              black: '#0D0D0D',
+            }
+          },
+          fontFamily: {
+            poppins: ['Poppins', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body class="font-poppins">
+
+  <!-- =========================================
+       FLOATING CART BUTTON (sticky top-right)
+       ========================================= -->
+  <button id="cart-btn-float" class="cart-btn-float" onclick="openCart()" aria-label="Open cart">
+    <!-- Cart Icon SVG -->
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-1.4 5.6a1 1 0 00.976 1.4H19M10 21a1 1 0 110-2 1 1 0 010 2zm9 0a1 1 0 110-2 1 1 0 010 2z"/>
+    </svg>
+    <!-- Badge -->
+    <span id="cart-badge" class="cart-badge" style="display:none;">0</span>
+  </button>
+
+  <!-- =========================================
+       TOAST NOTIFICATION
+       ========================================= -->
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <!-- =========================================
+       CART OVERLAY (backdrop)
+       ========================================= -->
+  <div id="cart-overlay" class="cart-overlay"></div>
+
+  <!-- =========================================
+       CART DRAWER (side panel)
+       ========================================= -->
+  <aside id="cart-drawer" class="cart-drawer" role="dialog" aria-modal="true" aria-label="Shopping cart">
+    <!-- Cart Header -->
+    <div class="cart-header">
+      <div>
+        <h2 style="font-size:1.2rem; font-weight:800;">Your Order 🛒</h2>
+        <p id="item-count" style="font-size:0.75rem; color:rgba(255,255,255,0.4); margin-top:2px;">0 items</p>
+      </div>
+      <button onclick="closeCart()" style="background:rgba(255,255,255,0.08); border:none; width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:rgba(255,255,255,0.7); font-size:1.1rem; transition:all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.15)'" onmouseout="this.style.background='rgba(255,255,255,0.08)'" aria-label="Close cart">
+        ✕
+      </button>
+    </div>
+
+    <!-- Free Delivery Promo (shows when eligible) -->
+    <div id="cart-promo" style="display:none; background:linear-gradient(90deg,rgba(34,197,94,0.15),rgba(34,197,94,0.05)); border:1px solid rgba(34,197,94,0.25); margin:12px 16px 0; border-radius:12px; padding:10px 14px; align-items:center; gap:8px;">
+      <span style="font-size:1.2rem;">🎉</span>
+      <span style="font-size:0.8rem; color:#4ade80; font-weight:600;">You qualify for <strong>FREE delivery!</strong></span>
+    </div>
+
+    <!-- Empty Cart State -->
+    <div id="cart-empty" class="cart-empty">
+      <div style="font-size:4rem;"> 🛒</div>
+      <h3 style="font-size:1.1rem; font-weight:700;">Your cart is empty</h3>
+      <p style="font-size:0.85rem; line-height:1.6;">Add some delicious burgers to your order!</p>
+      <button onclick="closeCart(); scrollTo('menu')" style="background:rgba(220,38,38,0.15); border:1px solid rgba(220,38,38,0.3); color:#f87171; border-radius:12px; padding:10px 20px; font-family:inherit; font-weight:600; cursor:pointer; transition:all 0.3s;" onmouseover="this.style.background='rgba(220,38,38,0.25)'" onmouseout="this.style.background='rgba(220,38,38,0.15)'">
+        Browse Menu
+      </button>
+    </div>
+
+    <!-- Cart Items List -->
+    <div id="cart-items-list" class="cart-items-list"></div>
+
+    <!-- Cart Footer (total + checkout) -->
+    <div id="cart-footer" class="cart-footer" style="display:none;">
+      <!-- Total breakdown -->
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <span style="color:rgba(255,255,255,0.5); font-size:0.85rem;">Subtotal</span>
+        <span id="grand-total" style="font-size:1.3rem; font-weight:800; color:#FBBF24;">₦0</span>
+      </div>
+      <p style="font-size:0.72rem; color:rgba(255,255,255,0.3); margin-bottom:16px;">Delivery fee calculated at checkout</p>
+
+      <!-- Checkout Button -->
+      <button class="checkout-btn" onclick="proceedToCheckout()" id="checkout-btn" aria-label="Proceed to checkout">
+        <span>Proceed to Checkout 🚀</span>
+      </button>
+
+      <!-- Paystack badge -->
+      <p style="text-align:center; margin-top:12px; font-size:0.72rem; color:rgba(255,255,255,0.25); display:flex; align-items:center; justify-content:center; gap:4px;">
+        🔒 Secure payment via <strong style="color:rgba(255,255,255,0.45);">Paystack</strong>
+      </p>
+    </div>
+  </aside>
+
+  <!-- =========================================
+       CHECKOUT CONFIRMATION MODAL
+       ========================================= -->
+  <div id="checkout-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Order confirmation">
+    <div class="modal-box">
+      <!-- Modal Header -->
+      <div style="text-align:center; margin-bottom:24px;">
+        <div style="font-size:3rem; margin-bottom:12px;">🧾</div>
+        <h2 style="font-size:1.4rem; font-weight:800; margin-bottom:6px;">Confirm Your Order</h2>
+        <p style="color:rgba(255,255,255,0.45); font-size:0.875rem;">Review your items before heading to payment</p>
+      </div>
+
+      <!-- Order Summary -->
+      <div id="modal-summary" style="margin-bottom:24px;"></div>
+
+      <!-- Info note -->
+      <div style="background:rgba(251,191,36,0.08); border:1px solid rgba(251,191,36,0.2); border-radius:12px; padding:12px 16px; margin-bottom:16px; font-size:0.8rem; color:rgba(255,255,255,0.6); display:flex; gap:8px; align-items:flex-start;">
+        <span>📍</span>
+        <span>Please fill in your delivery details to proceed to secure <strong style="color:#FBBF24;">Paystack</strong> payment.</span>
+      </div>
+
+      <!-- Customer Details Form -->
+      <form id="checkout-form" class="flex flex-col gap-3 mb-6">
+        <input type="text" id="cust-name" placeholder="Full Name" required style="padding:12px; border-radius:8px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#fff; width:100%; outline:none;" />
+        <div style="display:flex; gap:12px;">
+          <input type="email" id="cust-email" placeholder="Email Address" required style="padding:12px; border-radius:8px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#fff; width:50%; outline:none;" />
+          <input type="tel" id="cust-phone" placeholder="Phone Number" required style="padding:12px; border-radius:8px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#fff; width:50%; outline:none;" />
+        </div>
+        <textarea id="cust-address" placeholder="Delivery Address" required rows="2" style="padding:12px; border-radius:8px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#fff; width:100%; outline:none; resize:none;"></textarea>
+      </form>
+
+      <!-- Action Buttons -->
+      <div style="display:flex; gap:12px; flex-direction:column;">
+        <button id="pay-now-btn" class="checkout-btn" onclick="confirmAndPay()" aria-label="Pay now via Paystack">
+          <span>Pay Now via Paystack 💳</span>
+        </button>
+        <button onclick="closeCheckoutModal()" style="background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.1); color:rgba(255,255,255,0.6); border-radius:14px; padding:12px; font-family:inherit; font-weight:600; cursor:pointer; transition:all 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.12)'" onmouseout="this.style.background='rgba(255,255,255,0.07)'">
+          Go Back to Cart
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================
+       NAVBAR
+       ========================================= -->
+  <nav class="navbar fixed top-0 left-0 right-0 z-50">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6">
+      <div class="flex items-center justify-between h-16">
+
+        <!-- Logo -->
+        <a href="#" class="flex items-center gap-2" aria-label="XBurger home">
+          <span style="font-size:1.6rem;">🍔</span>
+          <span class="logo-text text-2xl">XBurger</span>
+        </a>
+
+        <!-- Desktop Nav Links -->
+        <div class="hidden md:flex items-center gap-6">
+          <a href="#menu" class="nav-link text-sm font-medium text-white/70 hover:text-white transition-colors duration-200">Menu</a>
+          <a href="#features" class="nav-link text-sm font-medium text-white/70 hover:text-white transition-colors duration-200">Why Us</a>
+          <a href="#testimonials" class="nav-link text-sm font-medium text-white/70 hover:text-white transition-colors duration-200">Reviews</a>
+          <a href="#contact" class="nav-link text-sm font-medium text-white/70 hover:text-white transition-colors duration-200">Contact</a>
+        </div>
+
+        <!-- Right side -->
+        <div class="flex items-center gap-3">
+          <!-- Dark mode toggle -->
+          <button class="dark-toggle hidden md:flex" onclick="toggleDarkMode()" id="dark-toggle-btn" aria-label="Toggle dark/light mode">
+            <span id="dark-icon">🌙</span>
+            <span id="dark-label">Dark</span>
+          </button>
+
+          <!-- Mobile menu btn -->
+          <button id="mobile-menu-btn" class="md:hidden w-9 h-9 rounded-xl flex items-center justify-center" style="background:rgba(255,255,255,0.08); border:none; color:white; cursor:pointer;" aria-label="Open mobile menu">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Mobile Menu Dropdown -->
+      <div id="mobile-menu" class="hidden md:hidden pb-4 pt-2 border-t border-white/5">
+        <div class="flex flex-col gap-1">
+          <a href="#menu" class="nav-link block px-3 py-2 rounded-lg text-sm font-medium text-white/70 hover:text-white hover:bg-white/5 transition-all">Menu</a>
+          <a href="#features" class="nav-link block px-3 py-2 rounded-lg text-sm font-medium text-white/70 hover:text-white hover:bg-white/5 transition-all">Why Us</a>
+          <a href="#testimonials" class="nav-link block px-3 py-2 rounded-lg text-sm font-medium text-white/70 hover:text-white hover:bg-white/5 transition-all">Reviews</a>
+          <a href="#contact" class="nav-link block px-3 py-2 rounded-lg text-sm font-medium text-white/70 hover:text-white hover:bg-white/5 transition-all">Contact</a>
+          
+          <div class="mt-2 pt-2 border-t border-white/10 px-3">
+            <a href="admin/index.html" class="flex items-center gap-2 text-brand-yellow hover:text-yellow-300 text-sm font-medium transition-all mb-3">
+              <span>🔒</span> Admin Login
+            </a>
+            <button class="dark-toggle" onclick="toggleDarkMode()" aria-label="Toggle theme">
+              <span id="dark-icon-mobile">🌙</span>
+              <span>Toggle Theme</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- =========================================
+       HERO SECTION
+       ========================================= -->
+  <section class="hero-section min-h-screen flex items-center justify-center relative pt-16" id="hero">
+    <div class="hero-glow"></div>
+
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-20 text-center relative z-10">
+      <!-- Badge -->
+      <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold mb-8 reveal"
+        style="background:rgba(220,38,38,0.12); border:1px solid rgba(220,38,38,0.25); color:#f87171; letter-spacing:1px; text-transform:uppercase;">
+        🔥 Now Delivering in Lagos
+      </div>
+
+      <!-- Main Headline -->
+      <h1 class="hero-title text-white mb-6 reveal delay-100">
+        Hot, Fresh Burgers<br/>
+        <span class="hero-highlight">Delivered in Lagos</span>
+      </h1>
+
+      <!-- Sub-text -->
+      <p class="text-white/60 text-lg max-w-xl mx-auto mb-10 reveal delay-200" style="line-height:1.7;">
+        Juicy, handcrafted burgers made with the freshest ingredients — ready at your door in record time.
+      </p>
+
+      <!-- CTA Buttons -->
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-4 reveal delay-300">
+        <a href="#menu" class="btn-primary" onclick="return false;" style="font-size:1.05rem; padding:16px 40px;" onclick="scrollTo('menu')">
+          🛒 Order Now
+        </a>
+        <a href="#features" class="text-white/60 hover:text-white text-sm font-medium transition-colors flex items-center gap-2">
+          Learn More
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+          </svg>
+        </a>
+      </div>
+
+      <!-- Stats -->
+      <div class="grid grid-cols-3 gap-6 max-w-sm mx-auto mt-16 reveal delay-400">
+        <div>
+          <p class="text-2xl font-900 gradient-text" style="font-weight:800;">500+</p>
+          <p class="text-xs text-white/40 mt-1">Happy Customers</p>
+        </div>
+        <div style="border-left:1px solid rgba(255,255,255,0.07); border-right:1px solid rgba(255,255,255,0.07);">
+          <p class="text-2xl gradient-text" style="font-weight:800;">30min</p>
+          <p class="text-xs text-white/40 mt-1">Avg Delivery</p>
+        </div>
+        <div>
+          <p class="text-2xl gradient-text" style="font-weight:800;">5⭐</p>
+          <p class="text-xs text-white/40 mt-1">Rating</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================
+       PROMO BANNER
+       ========================================= -->
+  <div class="promo-banner py-3 text-center" role="banner">
+    <p class="text-white font-semibold text-sm tracking-wide flex items-center justify-center gap-2">
+      <span>🚚</span>
+      <span>Free delivery on orders above <strong>₦10,000</strong> — Order now and save!</span>
+      <span>🎉</span>
+    </p>
+  </div>
+
+  <!-- =========================================
+       MENU SECTION
+       ========================================= -->
+  <section id="menu" class="menu-section py-20 px-4 sm:px-6">
+    <div class="max-w-6xl mx-auto">
+
+      <!-- Section Header -->
+      <div class="text-center mb-12">
+        <p class="text-brand-red text-sm font-semibold tracking-widest uppercase mb-3 reveal">Our Menu</p>
+        <h2 class="section-title text-white reveal delay-100">
+          Pick Your <span class="gradient-text">Favourite</span>
+        </h2>
+        <p class="section-subtitle reveal delay-200">
+          Every item is freshly made with quality ingredients. No shortcuts, just flavour.
+        </p>
+      </div>
+
+      <!-- Menu Grid — populated by JavaScript -->
+      <div id="menu-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+
+    </div>
+  </section>
+
+  <!-- =========================================
+       WHY CHOOSE US
+       ========================================= -->
+  <section id="features" class="features-section py-20 px-4 sm:px-6">
+    <div class="max-w-6xl mx-auto">
+
+      <!-- Section Header -->
+      <div class="text-center mb-12">
+        <p class="text-brand-red text-sm font-semibold tracking-widest uppercase mb-3 reveal">Why XBurger?</p>
+        <h2 class="section-title text-white reveal delay-100">
+          We Don't Just Make <span class="gradient-text">Burgers</span>
+        </h2>
+        <p class="section-subtitle reveal delay-200">We create experiences. Here's why Lagos loves us.</p>
+      </div>
+
+      <!-- Features Grid -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+
+        <!-- Feature 1 -->
+        <div class="feature-card reveal delay-100">
+          <div class="feature-icon">🌿</div>
+          <h3 class="font-bold text-base mb-2">Fresh Ingredients</h3>
+          <p class="text-white/50 text-sm leading-relaxed">Sourced daily — no frozen patties, no shortcuts. Every bite is 100% fresh.</p>
+        </div>
+
+        <!-- Feature 2 -->
+        <div class="feature-card reveal delay-200">
+          <div class="feature-icon">⚡</div>
+          <h3 class="font-bold text-base mb-2">Fast Delivery</h3>
+          <p class="text-white/50 text-sm leading-relaxed">Speedy delivery across Lagos. Hot food at your door, right on time.</p>
+        </div>
+
+        <!-- Feature 3 -->
+        <div class="feature-card reveal delay-300">
+          <div class="feature-icon">💸</div>
+          <h3 class="font-bold text-base mb-2">Affordable Prices</h3>
+          <p class="text-white/50 text-sm leading-relaxed">Premium taste, wallet-friendly prices. Great food shouldn't break the bank.</p>
+        </div>
+
+        <!-- Feature 4 -->
+        <div class="feature-card reveal delay-400">
+          <div class="feature-icon">🧼</div>
+          <h3 class="font-bold text-base mb-2">Hygienic Prep</h3>
+          <p class="text-white/50 text-sm leading-relaxed">World-class hygiene standards in every step — from prep kitchen to your door.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================
+       TESTIMONIALS
+       ========================================= -->
+  <section id="testimonials" class="testimonials-section py-20 px-4 sm:px-6">
+    <div class="max-w-6xl mx-auto">
+
+      <!-- Section Header -->
+      <div class="text-center mb-12">
+        <p class="text-brand-red text-sm font-semibold tracking-widest uppercase mb-3 reveal">Reviews</p>
+        <h2 class="section-title text-white reveal delay-100">
+          What Our <span class="gradient-text">Customers</span> Say
+        </h2>
+        <p class="section-subtitle reveal delay-200">Don't take our word for it — hear from real XBurger fans!</p>
+      </div>
+
+      <!-- Testimonials Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+
+        <!-- Testimonial 1 -->
+        <div class="testimonial-card reveal delay-100">
+          <div class="stars mb-3">★★★★★</div>
+          <p class="text-white/70 text-sm leading-relaxed mb-5">
+            "This is the BEST burger I've had in Lagos. The double beef was absolutely fire! Fast delivery too — order came in under 30 minutes."
+          </p>
+          <div class="flex items-center gap-3">
+            <div class="avatar" style="background:linear-gradient(135deg,#DC2626,#7f1d1d);">
+              <span style="color:white;">TK</span>
+            </div>
+            <div>
+              <p class="font-semibold text-sm">Tunde Kareem</p>
+              <p class="text-white/40 text-xs">Lagos Island</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Testimonial 2 -->
+        <div class="testimonial-card reveal delay-200">
+          <div class="stars mb-3">★★★★★</div>
+          <p class="text-white/70 text-sm leading-relaxed mb-5">
+            "Ordered the combo meal and I was genuinely shocked by the value. Huge burger, crispy fries, cold drink — all for ₦6,000. Will order again!"
+          </p>
+          <div class="flex items-center gap-3">
+            <div class="avatar" style="background:linear-gradient(135deg,#FBBF24,#D97706);">
+              <span style="color:#111;">AF</span>
+            </div>
+            <div>
+              <p class="font-semibold text-sm">Amaka Folasade</p>
+              <p class="text-white/40 text-xs">Victoria Island</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Testimonial 3 -->
+        <div class="testimonial-card reveal delay-300">
+          <div class="stars mb-3">★★★★★</div>
+          <p class="text-white/70 text-sm leading-relaxed mb-5">
+            "The cheese burger is simply unbeatable. That melted cheese dripping down — oh wow. XBurger has become my weekly treat. Highly recommend!"
+          </p>
+          <div class="flex items-center gap-3">
+            <div class="avatar" style="background:linear-gradient(135deg,#7c3aed,#4c1d95);">
+              <span style="color:white;">EB</span>
+            </div>
+            <div>
+              <p class="font-semibold text-sm">Emeka Badmus</p>
+              <p class="text-white/40 text-xs">Lekki Phase 1</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Testimonial 4 -->
+        <div class="testimonial-card reveal delay-400">
+          <div class="stars mb-3">★★★★☆</div>
+          <p class="text-white/70 text-sm leading-relaxed mb-5">
+            "Ordered fried chips and classic burger for lunch. Very affordable and delicious! The chips were crispy and perfectly seasoned. 10/10 service!"
+          </p>
+          <div class="flex items-center gap-3">
+            <div class="avatar" style="background:linear-gradient(135deg,#059669,#065f46);">
+              <span style="color:white;">SA</span>
+            </div>
+            <div>
+              <p class="font-semibold text-sm">Sade Adekunle</p>
+              <p class="text-white/40 text-xs">Surulere</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================
+       CONTACT SECTION
+       ========================================= -->
+  <section id="contact" class="contact-section py-20 px-4 sm:px-6">
+    <div class="max-w-6xl mx-auto">
+
+      <!-- Section Header -->
+      <div class="text-center mb-12">
+        <p class="text-brand-red text-sm font-semibold tracking-widest uppercase mb-3 reveal">Get In Touch</p>
+        <h2 class="section-title text-white reveal delay-100">
+          Order or <span class="gradient-text">Ask Us Anything</span>
+        </h2>
+        <p class="section-subtitle reveal delay-200">We're always happy to hear from you!</p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+
+        <!-- Contact Cards -->
+        <div class="flex flex-col gap-4">
+          <!-- WhatsApp -->
+          <div class="contact-card reveal delay-100">
+            <div class="contact-icon" style="background:linear-gradient(135deg,rgba(37,211,102,0.2),rgba(37,211,102,0.05)); border:1px solid rgba(37,211,102,0.25);">
+              <span>💬</span>
+            </div>
+            <div>
+              <p class="font-semibold text-sm mb-1">WhatsApp</p>
+              <p class="text-white/50 text-sm mb-3">Chat with us for quick orders & inquiries</p>
+              <a href="https://wa.me/2347077705842?text=Hi%20XBurger!%20I'd%20like%20to%20place%20an%20order%20🍔"
+                 class="whatsapp-btn"
+                 target="_blank" rel="noopener" aria-label="Chat on WhatsApp">
+                <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                Chat on WhatsApp
+              </a>
+            </div>
+          </div>
+
+          <!-- Email -->
+          <div class="contact-card reveal delay-200">
+            <div class="contact-icon" style="background:linear-gradient(135deg,rgba(220,38,38,0.2),rgba(220,38,38,0.05)); border:1px solid rgba(220,38,38,0.25);">
+              <span>📧</span>
+            </div>
+            <div>
+              <p class="font-semibold text-sm mb-1">Email Us</p>
+              <p class="text-white/50 text-sm mb-2">For feedback, partnerships or bulk orders</p>
+              <a href="mailto:xburger@gmail.com" class="text-brand-red hover:text-red-400 font-semibold text-sm transition-colors">xburger@gmail.com</a>
+            </div>
+          </div>
+
+          <!-- Location -->
+          <div class="contact-card reveal delay-300">
+            <div class="contact-icon" style="background:linear-gradient(135deg,rgba(251,191,36,0.2),rgba(251,191,36,0.05)); border:1px solid rgba(251,191,36,0.25);">
+              <span>📍</span>
+            </div>
+            <div>
+              <p class="font-semibold text-sm mb-1">Location</p>
+              <p class="text-white/50 text-sm">Lagos, Nigeria</p>
+              <p class="text-white/30 text-xs mt-1">Delivering across Lagos 🚚</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- CTA Panel -->
+        <div class="reveal delay-200" style="background:linear-gradient(145deg,rgba(220,38,38,0.1),rgba(220,38,38,0.02)); border:1px solid rgba(220,38,38,0.2); border-radius:24px; padding:36px; text-align:center;">
+          <div style="font-size:4rem; margin-bottom:16px;">🍔</div>
+          <h3 style="font-size:1.5rem; font-weight:800; margin-bottom:10px;">Ready to Order?</h3>
+          <p style="color:rgba(255,255,255,0.5); font-size:0.9rem; line-height:1.7; margin-bottom:24px;">
+            Head over to our menu and build your perfect meal. Fast, fresh, and delivered straight to you in Lagos.
+          </p>
+          <a href="#menu" class="btn-primary" onclick="scrollTo('menu'); return false;" style="display:inline-flex;">
+            🛒 View Full Menu
+          </a>
+          <div style="margin-top:20px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.07);">
+            <p style="font-size:0.8rem; color:rgba(255,255,255,0.3);">Secure payments via</p>
+            <p style="font-weight:700; color:rgba(255,255,255,0.6); font-size:0.95rem; margin-top:4px;">🔒 Paystack</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================
+       FOOTER
+       ========================================= -->
+  <footer class="footer py-10 px-4 sm:px-6">
+    <div class="max-w-6xl mx-auto">
+
+      <!-- Footer Top -->
+      <div class="flex flex-col md:flex-row items-center md:items-start justify-between gap-8 mb-8 pb-8" style="border-bottom:1px solid rgba(255,255,255,0.06);">
+        <!-- Brand -->
+        <div>
+          <div class="flex items-center gap-2 mb-3">
+            <span style="font-size:1.4rem;">🍔</span>
+            <span class="logo-text text-xl">XBurger</span>
+          </div>
+          <p class="text-white/40 text-sm max-w-xs leading-relaxed">
+            Lagos's premium burger brand. Fresh, fast, and affordable — every single time.
+          </p>
+        </div>
+
+        <!-- Quick Links -->
+        <div>
+          <p class="font-semibold text-sm mb-3">Quick Links</p>
+          <div class="flex flex-col gap-2">
+            <a href="#menu" class="text-white/40 hover:text-white text-sm transition-colors">Menu</a>
+            <a href="#features" class="text-white/40 hover:text-white text-sm transition-colors">Why Us</a>
+            <a href="#testimonials" class="text-white/40 hover:text-white text-sm transition-colors">Reviews</a>
+            <a href="#contact" class="text-white/40 hover:text-white text-sm transition-colors">Contact</a>
+            <a href="admin/index.html" class="text-brand-yellow hover:text-yellow-300 text-sm transition-colors flex items-center gap-1 mt-2 font-medium">
+              <span>🔒</span> Admin Login
+            </a>
+          </div>
+        </div>
+
+        <!-- Contact Details -->
+        <div>
+          <p class="font-semibold text-sm mb-3">Contact</p>
+          <div class="flex flex-col gap-2">
+            <a href="https://wa.me/2347077705842" target="_blank" rel="noopener" class="text-white/40 hover:text-green-400 text-sm transition-colors">📱 07077705842</a>
+            <a href="mailto:xburger@gmail.com" class="text-white/40 hover:text-brand-red text-sm transition-colors">📧 xburger@gmail.com</a>
+            <p class="text-white/40 text-sm">📍 Lagos, Nigeria</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer Bottom -->
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
+        <p class="text-white/25 text-xs">© 2025 XBurger. All rights reserved. | Lagos, Nigeria</p>
+        <p class="text-white/25 text-xs flex items-center gap-1">
+          Developed by: xBurger Tech Dept.
+        </p>
+      </div>
+
+    </div>
+  </footer>
+
+  <!-- =========================================
+       JAVASCRIPT
+       ========================================= -->
+  <script src="https://js.paystack.co/v1/inline.js"></script>
+  <script src="script.js"></script>
+
+  <!-- Smooth scroll for anchor links -->
+  <script>
+    document.querySelectorAll('a[href^="#"]').forEach(a => {
+      a.addEventListener('click', function(e) {
+        const href = this.getAttribute('href');
+        if (href === '#') return;
+        const target = document.querySelector(href);
+        if (target) {
+          e.preventDefault();
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+
+    // "Order Now" hero button
+    document.querySelector('a[href="#menu"]')?.addEventListener('click', () => {
+      document.getElementById('mobile-menu')?.classList.add('hidden');
+    });
+  </script>
+
+</body>
+</html>
