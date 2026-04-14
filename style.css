@@ -328,8 +328,8 @@ body {
    ============================================= */
 .cart-btn-float {
   position: fixed;
-  top: 20px;
-  right: 20px;
+  bottom: 30px;
+  right: 30px;
   z-index: 1000;
   background: linear-gradient(135deg, var(--brand-red), var(--brand-red-dark));
   color: white;
