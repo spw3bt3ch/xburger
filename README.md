@@ -39,9 +39,4 @@ You can deploy directly to Vercel via their Dashboard Interface.
 
 A `vercel.json` file has already been pre-configured to ensure clean routing (e.g. `yourdomain.com/admin` serving `/admin/index.html`) and proper cache control for instant updates.
 
-## 🔑 Default Credentials
-- **Admin Panel URI:** `/admin/index.html`
-- **Username:** `admin`
-- **Password:** `xburger2025`
-
 > **Note:** The Admin Dashboard databases are completely isolated to the webmaster’s localized browser (`localStorage`). It interacts strictly with the frontend via localized sync states. If the cache is cleared, data safely unmounts until reconstructed.
